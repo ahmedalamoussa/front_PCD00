@@ -1,9 +1,12 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     email: "",
     password: "",
+    userType: "patient", // par défaut patient
   });
 
   const handleChange = (e) => {
@@ -14,8 +17,16 @@ export default function Login() {
   const handleSubmit = (e) => {
     e.preventDefault();
     console.log("Login:", form);
-    alert(`Connexion avec ${form.email}`);
-    // Ici tu peux appeler ton API pour vérifier l'email et le mot de passe
+    
+    // Si c'est un patient, rediriger vers l'interface des exercices KineIA
+    if (form.userType === "patient") {
+      alert(`Bienvenue ${form.email} - Redirection vers vos exercices`);
+      navigate("/exercises");
+    } else {
+      // Pour les autres types d'utilisateurs (kinés, etc.)
+      alert(`Connexion avec ${form.email}`);
+      // Rediriger vers une autre interface si nécessaire
+    }
   };
 
   return (
@@ -44,7 +55,7 @@ export default function Login() {
           />
         </div>
 
-        <div className="mb-6">
+        <div className="mb-4">
           <label className="block text-gray-700 mb-1" htmlFor="password">
             Mot de passe
           </label>
@@ -58,6 +69,22 @@ export default function Login() {
             className="input w-full"
             required
           />
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-gray-700 mb-1" htmlFor="userType">
+            Type d'utilisateur
+          </label>
+          <select
+            name="userType"
+            id="userType"
+            value={form.userType}
+            onChange={handleChange}
+            className="input w-full"
+          >
+            <option value="patient">Patient</option>
+            <option value="kine">Kinésithérapeute</option>
+          </select>
         </div>
 
         <button
