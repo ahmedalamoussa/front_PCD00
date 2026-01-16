@@ -1,5 +1,4 @@
-// Base de données des exercices
-// TODO: Remplacer par un appel API pour charger les exercices depuis le backend
+
 
 export const exercisesData = {
   stretching: [
