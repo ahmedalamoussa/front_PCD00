@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useKine } from './context/KineContext';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { activateKineSession, clearKineSession } = useKine();
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -20,12 +22,13 @@ export default function Login() {
     
     // Si c'est un patient, rediriger vers l'interface des exercices KineIA
     if (form.userType === "patient") {
+      clearKineSession();
       alert(`Bienvenue ${form.email} - Redirection vers vos exercices`);
       navigate("/exercises");
     } else {
-      // Pour les autres types d'utilisateurs (kinés, etc.)
-      alert(`Connexion avec ${form.email}`);
-      // Rediriger vers une autre interface si nécessaire
+      activateKineSession(form.email.trim().toLowerCase());
+      alert(`Connexion Kiné réussie pour ${form.email}`);
+      navigate('/kine-dashboard');
     }
   };
 

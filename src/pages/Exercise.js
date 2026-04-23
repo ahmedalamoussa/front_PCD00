@@ -10,7 +10,7 @@ import './Exercise.css';
 const Exercise = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isGuided, saveExerciseResult, sendReportToKine } = useUser();
+  const { isGuided, guidedPatient, saveExerciseResult, sendReportToKine } = useUser();
   
   const [exercise, setExercise] = useState(null);
   const [videoWatched, setVideoWatched] = useState(false);
@@ -24,13 +24,22 @@ const Exercise = () => {
   const videoPreviewRef = useRef(null);
 
   useEffect(() => {
+    if (isGuided && guidedPatient) {
+      const isAssigned = (guidedPatient.assignedExercises || []).includes(id);
+      if (!isAssigned) {
+        alert('Cet exercice ne fait pas partie de votre programme assigné.');
+        navigate('/exercises');
+        return;
+      }
+    }
+
     const foundExercise = getExerciseById(id);
     if (foundExercise) {
       setExercise(foundExercise);
     } else {
       navigate('/');
     }
-  }, [id, navigate]);
+  }, [id, isGuided, guidedPatient, navigate]);
 
   // Marquer la vidéo comme visionnée après un certain temps
   const handleVideoLoad = () => {

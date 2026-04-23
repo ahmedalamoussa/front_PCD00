@@ -5,7 +5,6 @@ import './CodeKineInput.css';
 const CodeKineInput = () => {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
-  const [showInput, setShowInput] = useState(true);
   const { validateKineCode, clearKineCode, isGuided, kineCode } = useUser();
 
   const handleSubmit = (e) => {
@@ -13,7 +12,6 @@ const CodeKineInput = () => {
     setError('');
 
     if (validateKineCode(code)) {
-      setShowInput(false);
       setCode('');
     } else {
       setError('Code invalide. Le code doit contenir 6 caractères.');
@@ -22,12 +20,11 @@ const CodeKineInput = () => {
 
   const handleClear = () => {
     clearKineCode();
-    setShowInput(true);
     setCode('');
     setError('');
   };
 
-  if (isGuided && !showInput) {
+  if (isGuided) {
     return (
       <div className="code-kine-container success">
         <div className="code-kine-success">

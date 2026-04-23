@@ -1,5 +1,4 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import CodeKineInput from '../components/CodeKineInput';
 import ExerciseCard from '../components/ExerciseCard';
 import { exercisesData } from '../data/exercises';
@@ -7,7 +6,16 @@ import { useUser } from '../context/UserContext';
 import './Home.css';
 
 const Home = () => {
-  const { isGuided } = useUser();
+  const { isGuided, guidedPatient } = useUser();
+
+  const assignedExerciseIds = new Set(guidedPatient?.assignedExercises || []);
+  const stretchingExercises = isGuided
+    ? exercisesData.stretching.filter((exercise) => assignedExerciseIds.has(exercise.id))
+    : exercisesData.stretching;
+  const strengtheningExercises = isGuided
+    ? exercisesData.strengthening.filter((exercise) => assignedExerciseIds.has(exercise.id))
+    : exercisesData.strengthening;
+  const hasAssignedExercises = stretchingExercises.length > 0 || strengtheningExercises.length > 0;
 
   return (
     <div className="home-container">
@@ -70,7 +78,7 @@ const Home = () => {
           </p>
         </div>
         <div className="exercises-grid">
-          {exercisesData.stretching.map((exercise) => (
+          {stretchingExercises.map((exercise) => (
             <ExerciseCard key={exercise.id} exercise={exercise} />
           ))}
         </div>
@@ -88,11 +96,21 @@ const Home = () => {
           </p>
         </div>
         <div className="exercises-grid">
-          {exercisesData.strengthening.map((exercise) => (
+          {strengtheningExercises.map((exercise) => (
             <ExerciseCard key={exercise.id} exercise={exercise} />
           ))}
         </div>
       </section>
+
+      {isGuided && !hasAssignedExercises && (
+        <section className="exercises-section">
+          <div className="section-header">
+            <p className="section-description">
+              Aucun exercice ne vous a encore été assigné. Contactez votre kinésithérapeute.
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="home-footer">

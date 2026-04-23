@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { getPatientByCode, submitPatientReportByCode } from '../services/kineService';
 
 const UserContext = createContext();
 
@@ -14,6 +15,7 @@ export const useUser = () => {
 export const UserProvider = ({ children }) => {
   const [kineCode, setKineCode] = useState(null);
   const [isGuided, setIsGuided] = useState(false);
+  const [guidedPatient, setGuidedPatient] = useState(null);
   const [exerciseResults, setExerciseResults] = useState({});
 
   // Charger les données depuis le localStorage au démarrage
@@ -24,17 +26,29 @@ export const UserProvider = ({ children }) => {
 
     if (storedCode) setKineCode(storedCode);
     if (storedIsGuided) setIsGuided(storedIsGuided === 'true');
+    if (storedCode) {
+      const patient = getPatientByCode(storedCode);
+      setGuidedPatient(patient);
+      if (!patient) {
+        setKineCode(null);
+        setIsGuided(false);
+        localStorage.removeItem('kineCode');
+        localStorage.removeItem('isGuided');
+      }
+    }
     if (storedResults) setExerciseResults(JSON.parse(storedResults));
   }, []);
 
   // Fonction pour valider et définir le code KINÉ
   const validateKineCode = (code) => {
-    // TODO: Remplacer par une vraie validation API
-    // Pour l'instant, on accepte tout code de 6 caractères
-    if (code && code.length === 6) {
-      setKineCode(code);
+    const normalizedCode = code ? code.trim().toUpperCase() : '';
+    const patient = getPatientByCode(normalizedCode);
+
+    if (patient) {
+      setKineCode(normalizedCode);
+      setGuidedPatient(patient);
       setIsGuided(true);
-      localStorage.setItem('kineCode', code);
+      localStorage.setItem('kineCode', normalizedCode);
       localStorage.setItem('isGuided', 'true');
       return true;
     }
@@ -45,6 +59,7 @@ export const UserProvider = ({ children }) => {
   const clearKineCode = () => {
     setKineCode(null);
     setIsGuided(false);
+    setGuidedPatient(null);
     localStorage.removeItem('kineCode');
     localStorage.removeItem('isGuided');
   };
@@ -68,11 +83,14 @@ export const UserProvider = ({ children }) => {
       throw new Error('Vous devez être un utilisateur guidé pour envoyer un bilan');
     }
 
+    const synced = submitPatientReportByCode(kineCode, exerciseId, exerciseResults[exerciseId]);
+
     // TODO: Intégrer l'API réelle pour envoyer le bilan
     console.log('Envoi du bilan au kiné:', {
       kineCode,
       exerciseId,
       result: exerciseResults[exerciseId],
+      synced,
     });
 
     // Simulation d'un appel API
@@ -86,6 +104,7 @@ export const UserProvider = ({ children }) => {
   const value = {
     kineCode,
     isGuided,
+    guidedPatient,
     exerciseResults,
     validateKineCode,
     clearKineCode,
