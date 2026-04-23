@@ -20,22 +20,13 @@ export const UserProvider = ({ children }) => {
 
   // Charger les données depuis le localStorage au démarrage
   useEffect(() => {
-    const storedCode = localStorage.getItem('kineCode');
-    const storedIsGuided = localStorage.getItem('isGuided');
     const storedResults = localStorage.getItem('exerciseResults');
 
-    if (storedCode) setKineCode(storedCode);
-    if (storedIsGuided) setIsGuided(storedIsGuided === 'true');
-    if (storedCode) {
-      const patient = getPatientByCode(storedCode);
-      setGuidedPatient(patient);
-      if (!patient) {
-        setKineCode(null);
-        setIsGuided(false);
-        localStorage.removeItem('kineCode');
-        localStorage.removeItem('isGuided');
-      }
-    }
+    // Le mode guidé ne doit pas être réactivé automatiquement.
+    // Le patient doit ressaisir le code à chaque nouvelle session d'app.
+    localStorage.removeItem('kineCode');
+    localStorage.removeItem('isGuided');
+
     if (storedResults) setExerciseResults(JSON.parse(storedResults));
   }, []);
 
@@ -48,8 +39,6 @@ export const UserProvider = ({ children }) => {
       setKineCode(normalizedCode);
       setGuidedPatient(patient);
       setIsGuided(true);
-      localStorage.setItem('kineCode', normalizedCode);
-      localStorage.setItem('isGuided', 'true');
       return true;
     }
     return false;
