@@ -1,36 +1,50 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useKine } from './context/KineContext';
+import { login } from './services/authService';
 
 export default function Login() {
   const navigate = useNavigate();
   const { activateKineSession, clearKineSession } = useKine();
   const [form, setForm] = useState({
     email: "",
-    password: "",
+    motDePasse: "",
     userType: "patient", // par défaut patient
   });
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm({ ...form, [name]: value });
   };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Login:", form);
-    
-    // Si c'est un patient, rediriger vers l'interface des exercices KineIA
-    if (form.userType === "patient") {
-      clearKineSession();
-      alert(`Bienvenue ${form.email} - Redirection vers vos exercices`);
-      navigate("/exercises");
-    } else {
-      activateKineSession(form.email.trim().toLowerCase());
-      alert(`Connexion Kiné réussie pour ${form.email}`);
-      navigate('/kine-dashboard');
+    setLoading(true);
+    setErrorMessage("");
+
+    try {
+      await login(form.email, form.motDePasse, form.userType);
+
+      if (form.userType === "patient") {
+        clearKineSession();
+        navigate("/exercises");
+      } else {
+        activateKineSession(form.email.trim().toLowerCase());
+        navigate("/kine-dashboard");
+      }
+    } catch (error) {
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setErrorMessage("Email, mot de passe ou type utilisateur incorrect.");
+      } else {
+        setErrorMessage("Erreur serveur. Reessayez dans un instant.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
+
+
 
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-100">
@@ -64,15 +78,19 @@ export default function Login() {
           </label>
           <input
             type="password"
-            name="password"
-            id="password"
+            name="motDePasse"
+            id="motDePasse"
             placeholder="votre mot de passe"
-            value={form.password}
+            value={form.motDePasse}
             onChange={handleChange}
             className="input w-full"
             required
           />
         </div>
+
+        {errorMessage && (
+          <p className="mb-4 text-sm text-red-600">{errorMessage}</p>
+        )}
 
         <div className="mb-6">
           <label className="block text-gray-700 mb-1" htmlFor="userType">
@@ -92,9 +110,10 @@ export default function Login() {
 
         <button
           type="submit"
+          disabled={loading}
           className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
         >
-          Connexion
+          {loading ? "Connexion en cours..." : "Connexion"}
         </button>
 
         <p className="text-sm text-center text-gray-500 mt-4">

@@ -1,100 +1,48 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { register } from "./services/authService";
 
 export default function Register() {
-  // Charger les inscrits existants depuis localStorage
-  const savedUsers = JSON.parse(localStorage.getItem("users")) || [];
-
   const [form, setForm] = useState({
     nom: "",
     prenom: "",
     email: "",
-    password: "",
-    dateNaissance: "",
-    job: "Patient",
-    codeUnique: "",
+    motDePasse: "",
+    userType: "patient",
   });
-
-  const [errors, setErrors] = useState({
-    email: "",
-    password: "",
-  });
-
-  const [users, setUsers] = useState(savedUsers); // tous les inscrits
-
-  const generateUniqueCode = () => {
-    let code;
-    do {
-      code = Math.floor(100000 + Math.random() * 900000).toString();
-    } while (users.some(u => u.codeUnique === code));
-    return code;
-  };
-
-  useEffect(() => {
-    if (form.job === "Kiné") {
-      const newCode = generateUniqueCode();
-      setForm(prev => ({ ...prev, codeUnique: newCode }));
-    } else {
-      setForm(prev => ({ ...prev, codeUnique: "" }));
-    }
-  }, [form.job]);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm({ ...form, [name]: value });
-
-    if (name === "email") {
-      if (users.some(u => u.email === value)) {
-        setErrors(prev => ({ ...prev, email: "Cet email existe déjà" }));
-      } else {
-        setErrors(prev => ({ ...prev, email: "" }));
-      }
-    }
-
-    if (name === "password") {
-      const regex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]+$/;
-      if (!regex.test(value)) {
-        setErrors(prev => ({
-          ...prev,
-          password: "Le mot de passe doit contenir lettres et chiffres",
-        }));
-      } else {
-        setErrors(prev => ({ ...prev, password: "" }));
-      }
-    }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setErrorMessage("");
+    setSuccessMessage("");
 
-    if (errors.email || errors.password) {
-      alert("Veuillez corriger les erreurs avant de soumettre.");
-      return;
+    try {
+      await register(form);
+      setSuccessMessage("Inscription reussie. Vous pouvez maintenant vous connecter.");
+      setForm({
+        nom: "",
+        prenom: "",
+        email: "",
+        motDePasse: "",
+        userType: "patient",
+      });
+    } catch (error) {
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        setErrorMessage("Action non autorisee. Verifiez vos informations.");
+      } else {
+        setErrorMessage("Erreur lors de l'inscription. Reessayez.");
+      }
+    } finally {
+      setLoading(false);
     }
-
-    const newUser = { ...form };
-    setUsers(prev => {
-      const updatedUsers = [...prev, newUser];
-      localStorage.setItem("users", JSON.stringify(updatedUsers)); // persister
-      return updatedUsers;
-    });
-
-    if (form.job === "Kiné") {
-      alert(`Inscription Kiné réussie ! Code unique : ${form.codeUnique}`);
-    } else {
-      alert(`Inscription Patient réussie pour ${form.nom} ${form.prenom}`);
-    }
-
-    // Réinitialiser le formulaire
-    setForm({
-      nom: "",
-      prenom: "",
-      email: "",
-      password: "",
-      dateNaissance: "",
-      job: "Patient",
-      codeUnique: "",
-    });
-    setErrors({ email: "", password: "" });
   };
 
   return (
@@ -106,26 +54,21 @@ export default function Register() {
 
       <div className="relative">
         <input type="email" name="email" placeholder="Votre email ..." value={form.email} onChange={handleChange} className="input w-full" required />
-        {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
       </div>
 
       <div className="relative">
-        <input type="password" name="password" placeholder="Votre mot de passe ..." value={form.password} onChange={handleChange} className="input w-full" required />
-        {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
+        <input type="password" name="motDePasse" placeholder="Votre mot de passe ..." value={form.motDePasse} onChange={handleChange} className="input w-full" required />
       </div>
 
-      <input type="date" name="dateNaissance" value={form.dateNaissance} onChange={handleChange} className="input w-full" required />
-
-      <select name="job" value={form.job} onChange={handleChange} className="select w-full">
-        <option value="Patient">Patient</option>
-        <option value="Kiné">Kiné</option>
+      <select name="userType" value={form.userType} onChange={handleChange} className="select w-full">
+        <option value="patient">Patient</option>
+        <option value="kine">Kinesitherapeute</option>
       </select>
 
-      {form.job === "Kiné" && (
-        <input type="text" name="codeUnique" value={form.codeUnique} readOnly className="input w-full bg-gray-200 cursor-not-allowed" title="Code unique généré automatiquement" />
-      )}
+      {errorMessage && <p className="text-red-500 text-sm">{errorMessage}</p>}
+      {successMessage && <p className="text-green-600 text-sm">{successMessage}</p>}
 
-      <button type="submit" className="btn w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors">S’inscrire</button>
+      <button type="submit" disabled={loading} className="btn w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors">{loading ? "Inscription en cours..." : "S’inscrire"}</button>
     </form>
   );
 }

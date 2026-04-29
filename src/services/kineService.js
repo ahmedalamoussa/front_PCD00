@@ -1,4 +1,7 @@
+import axios from 'axios';
+
 const KINE_PATIENTS_KEY = 'kinePatients';
+const API_BASE_URL = 'http://localhost:8080/api';
 
 const readStore = () => {
   try {
@@ -33,6 +36,16 @@ const generatePatientCode = (store) => {
 export const getKinePatients = (kineEmail) => {
   const store = readStore();
   return store[kineEmail] || [];
+};
+
+export const getPatients = async (kineId) => {
+  const token = localStorage.getItem('user_token');
+
+  return axios.get(`${API_BASE_URL}/patients/kine/${kineId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 };
 
 export const saveKinePatients = (kineEmail, patients) => {

@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getExerciseById } from '../data/exercises';
 import { useUser } from '../context/UserContext';
-import { analyzeMovement, startVideoCapture, stopVideoCapture } from '../services/aiService';
 import VideoPlayer from '../components/VideoPlayer';
 import ScoreDisplay from '../components/ScoreDisplay';
+import ExerciseSession from '../components/ExerciseSession';
 import './Exercise.css';
 
 const Exercise = () => {
@@ -13,15 +13,13 @@ const Exercise = () => {
   const { isGuided, guidedPatient, saveExerciseResult, sendReportToKine } = useUser();
   
   const [exercise, setExercise] = useState(null);
-  const [videoWatched, setVideoWatched] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [selectedMode, setSelectedMode] = useState('STRENGTH');
+  const [modeInitialized, setModeInitialized] = useState(false);
+  const [sessionStarted, setSessionStarted] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
-  const [isRecording, setIsRecording] = useState(false);
   const [sendingReport, setSendingReport] = useState(false);
   const [reportSent, setReportSent] = useState(false);
-  
-  const videoStreamRef = useRef(null);
-  const videoPreviewRef = useRef(null);
+  const [lastSavedScore, setLastSavedScore] = useState(null);
 
   useEffect(() => {
     if (isGuided && guidedPatient) {
@@ -36,64 +34,35 @@ const Exercise = () => {
     const foundExercise = getExerciseById(id);
     if (foundExercise) {
       setExercise(foundExercise);
+      const defaultMode = foundExercise.category === 'stretching' ? 'STRETCHING' : 'STRENGTH';
+      setSelectedMode(defaultMode);
+      setSessionStarted(false);
+      setAnalysisResult(null);
+      setModeInitialized(false);
+      setLastSavedScore(null);
     } else {
       navigate('/');
     }
   }, [id, isGuided, guidedPatient, navigate]);
 
-  // Marquer la vidéo comme visionnée après un certain temps
-  const handleVideoLoad = () => {
-    // Simuler que l'utilisateur a visionné la vidéo après 3 secondes
-    setTimeout(() => {
-      setVideoWatched(true);
-    }, 3000);
-  };
+  const handleLiveResult = (normalizedResult) => {
+    setAnalysisResult(normalizedResult);
 
-  const handleStartRecording = async () => {
-    try {
-      // TODO: Intégrer la vraie capture vidéo
-      const stream = await startVideoCapture();
-      videoStreamRef.current = stream;
-      
-      if (videoPreviewRef.current) {
-        videoPreviewRef.current.srcObject = stream;
-      }
-      
-      setIsRecording(true);
-    } catch (error) {
-      console.error('Erreur lors du démarrage de la caméra:', error);
-      alert('Impossible d\'accéder à la caméra. Vérifiez les permissions.');
+    const scoreKey = normalizedResult
+      ? `${normalizedResult.score ?? ''}-${normalizedResult.status ?? ''}-${normalizedResult.angle ?? ''}`
+      : null;
+
+    if (scoreKey && scoreKey !== lastSavedScore) {
+      setLastSavedScore(scoreKey);
+      saveExerciseResult(exercise.id, normalizedResult);
     }
   };
 
-  const handleStopRecording = () => {
-    if (videoStreamRef.current) {
-      stopVideoCapture(videoStreamRef.current);
-      videoStreamRef.current = null;
-    }
-    setIsRecording(false);
-  };
-
-  const handleAnalyze = async () => {
-    if (!videoWatched) {
-      alert('Veuillez d\'abord visionner la vidéo de démonstration.');
-      return;
-    }
-
-    setIsAnalyzing(true);
-    setAnalysisResult(null);
-
-    try {
-      // TODO: Passer les vraies données de mouvement à l'analyse
-      const result = await analyzeMovement(exercise.id, null);
-      setAnalysisResult(result);
-      saveExerciseResult(exercise.id, result);
-    } catch (error) {
-      console.error('Erreur lors de l\'analyse:', error);
-      alert('Une erreur est survenue lors de l\'analyse.');
-    } finally {
-      setIsAnalyzing(false);
-    }
+  const handleStartSession = () => {
+    console.log("🚀 Bouton cliqué !");
+  
+    setModeInitialized(true);
+    setSessionStarted(true);
   };
 
   const handleSendReport = async () => {
@@ -147,12 +116,6 @@ const Exercise = () => {
           videoId={exercise.videoId} 
           title={`Démonstration : ${exercise.title}`} 
         />
-        <div onLoad={handleVideoLoad} style={{ display: 'none' }} />
-        {videoWatched && (
-          <div className="video-watched-badge">
-            ✓ Vidéo visionnée
-          </div>
-        )}
       </div>
 
       {/* Instructions */}
@@ -165,68 +128,46 @@ const Exercise = () => {
         </ol>
       </div>
 
-      {/* Zone d'analyse IA */}
       <div className="analysis-section">
         <h2>Analyse IA de vos mouvements</h2>
         <p className="analysis-description">
-          {!videoWatched 
-            ? 'Visionnez d\'abord la vidéo de démonstration avant de commencer l\'analyse.'
-            : 'Cliquez sur "Démarrer l\'analyse" pour commencer. L\'IA analysera vos mouvements en temps réel.'
-          }
+          Choisissez le mode puis cliquez sur "Ouvrir la webcam" pour demarrer l'analyse IA.
         </p>
 
-        {/* Prévisualisation caméra */}
-        <div className="camera-preview">
-          <video 
-            ref={videoPreviewRef} 
-            autoPlay 
-            playsInline
-            muted
-            className={isRecording ? 'recording' : ''}
-          />
-          {!isRecording && (
-            <div className="camera-placeholder">
-              <div className="camera-icon">📹</div>
-              <p>La caméra s'activera lors de l'analyse</p>
-            </div>
-          )}
+        <div className="action-buttons" style={{ marginBottom: '16px' }}>
+          <select
+            value={selectedMode}
+            onChange={(e) => setSelectedMode(e.target.value)}
+            disabled={modeInitialized}
+            className="secondary-btn"
+            style={{ marginRight: '12px' }}
+          >
+            <option value="STRENGTH">Renforcement</option>
+            <option value="STRETCHING">Etirement</option>
+          </select>
+          <button
+            type="button"
+            onClick={handleStartSession}
+            className="primary-btn"
+          >
+            Ouvrir la webcam
+          </button>
         </div>
 
-        {/* Boutons d'action */}
-        <div className="action-buttons">
-          {!isRecording ? (
-            <button 
-              onClick={handleStartRecording}
-              disabled={!videoWatched || isAnalyzing}
-              className="primary-btn"
-            >
-              {isAnalyzing ? 'Analyse en cours...' : 'Activer la caméra'}
-            </button>
-          ) : (
-            <>
-              <button 
-                onClick={handleAnalyze}
-                disabled={isAnalyzing}
-                className="primary-btn analyze-btn"
-              >
-                {isAnalyzing ? (
-                  <>
-                    <span className="spinner"></span>
-                    Analyse en cours...
-                  </>
-                ) : (
-                  'Démarrer l\'analyse'
-                )}
-              </button>
-              <button 
-                onClick={handleStopRecording}
-                className="secondary-btn"
-              >
-                Arrêter la caméra
-              </button>
-            </>
-          )}
-        </div>
+        {sessionStarted ? (
+          <ExerciseSession
+            initialMode={selectedMode}
+            onResult={handleLiveResult}
+            onClose={() => {
+              setSessionStarted(false);
+              setModeInitialized(false);
+            }}
+          />
+        ) : (
+          <div style={{ textAlign: 'center', padding: '20px', color: '#888', fontSize: '0.9rem' }}>
+            📹 Initialise le mode, puis clique sur "Ouvrir la webcam"
+          </div>
+        )}
       </div>
 
       {/* Affichage du score */}
